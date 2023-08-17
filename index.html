@@ -44,9 +44,6 @@
 </div>
 <hr class="rounded">
 <div id="overview">
-    <p>
-        We propose a self-supervised sensorimotor pre-training approach for robotics. We formulate pre-training via a sensorimotor prediction problem. We hypothesize that if the robot can predict the missing sensorimotor content it has acquired a good model about the physical world that can enable it to act. We instantiate this idea through a masked prediction task, similar to BERT/MAE.
-    </p>
 
     <h1>Masked Sensorimotor Prediction</h1>
 
@@ -62,49 +59,19 @@
     </div>
 
     <p>
+        We propose a self-supervised sensorimotor pre-training approach for robotics. We formulate pre-training via a sensorimotor prediction problem. We hypothesize that if the robot can predict the missing sensorimotor content it has acquired a good model of the physical world that can enable it to act. We instantiate this idea through a masked prediction task, similar to BERT and MAE.
+    </p>
+
+    <p>
         Our model, called RPT, is a Transformer that operates on sequences of sensorimotor tokens. Given an input sequence of camera images, proprioceptive states, and actions, we encode the interleaved sequence into tokens, mask out a random subset of the sequence, and predict the masked-out content from the rest. We perform random masking across all modalities and time using a high masking ratio, which encourages the model to learn cross-modal, spatio-temporal representations.
         <br><br>
-        We encode camera images using a <a href="https://tetexiao.com/projects/real-mvp">pre-trained vision encoder</a> and use latent visual representations for sensorimotor sequence learning. This enables us to benefit from diverse visual data from the Internet that does not come with the accompanying proprioceptive and action information. Compared to prediction in pixel space, using latent visual representations makes the task more tractable. Finally, this design decouples the vision flops from the sensorimotor context length, making 10 Hz control with over 300M parameter models feasible on a physical robot.
+        We encode camera images using a  <a href="https://tetexiao.com/projects/real-mvp">pre-trained vision encoder</a> and use latent representations for sensorimotor sequence learning. This enables us to benefit from strong vision encoders trained on diverse Internet images. Compared to prediction in pixel space, using latent visual representations makes the task feasible. Finally, this design decouples the vision encoder from the sensorimotor context length, making 10 Hz control with 300M parameter models feasible on a physical robot.
     </p>
 
     <h1>Real-World Trajectories</h1>
     <p>
       To evaluate our pre-training approach, we collect a dataset of 20,000 real-world trajectories using a combination of motion planning and model-based grasping algorithms. Each trajectory is a sequence of multi-view camera images, proprioceptive robot states, and actions. We include classic motor control and robotic tasks, namely, single object picking, bin picking, stacking, and destacking, with variations in object poses, shape, and appearance.
     </p>
-
-    <!--
-    <div class="allegroupper">
-        <video autoplay muted playsinline loop preload="metadata">
-            <source src="assets/franka/pick-green-cube_05-22-2023/output_rgb_left.mp4" type="video/mp4">
-        </video>
-        <video autoplay muted playsinline loop preload="metadata">
-            <source src="assets/franka/pick-green-cube_05-22-2023/output_rgb_hand.mp4" type="video/mp4">
-        </video>
-        <video autoplay muted playsinline loop preload="metadata">
-            <source src="assets/franka/pick-green-cube_05-22-2023/output_rgb_right.mp4" type="video/mp4">
-        </video>
-    </div>
-    <div class="allegrolower">
-        <div class="video_container">
-            <video autoplay muted playsinline loop preload="metadata">
-                <source src="assets/franka/pick-wood-cylinder_05-29-2023/output_rgb_left.mp4" type="video/mp4">
-            </video>
-            <div class="caption">
-                <p>Each trajectory is a sequence of camera images from three views, proprioceptive states, and actions</p>
-            </div>
-        </div>
-        <div class="video_container">
-            <video autoplay muted playsinline loop preload="metadata">
-                <source src="assets/franka/pick-wood-cylinder_05-29-2023/output_rgb_hand.mp4" type="video/mp4">
-            </video>
-        </div>
-        <div class="video_container">
-            <video autoplay muted playsinline loop preload="metadata">
-                <source src="assets/franka/pick-wood-cylinder_05-29-2023/output_rgb_right.mp4" type="video/mp4">
-            </video>
-        </div>
-    </div>
-    -->
 
     <div class="allegroupper">
         <video autoplay muted playsinline loop preload="metadata">
@@ -138,6 +105,141 @@
         </div>
     </div>
 
+    <h1>Model Inference</h1>
+
+    <p>
+    We fine-tune the pre-trained model with behavior cloning (BC) on downstream tasks. During fine-tuning, we construct a model that takes the past sensorimotor inputs of the same context length as in pre-training and initialize it with the pre-trained weights. We replace the input action token in the last time step with a mask token. We only keep the output token that corresponds to the mask input token, and discard all the other output tokens.
+    </p>
+
+    <p>
+    We perform inference in the autoregressive fashion. Given a set of sensory observations we first predict an action. We then execute the action and feed back both the action and the new set of sensory observations to the model. We repeat this process iteratively to complete the task.
+    </p>
+
+    <div class="approach">
+        <div class="video_container">
+            <video loop autoplay muted playsinline preload="metadata">
+                <source src="assets/inference_animation.mp4" type="video/mp4">
+            </video>
+            <div class="caption">
+                <p>At inference time, we only provide the mask token for the last action. After we predict an action, we execute it and feed back to the model with the new sensory observations. We repeat this process iteratively until the task is complete.</p>
+            </div>
+        </div>
+    </div>
+
+    <h1>Transfer to Downstream Tasks</h1>
+
+    <p>
+    We consider three different tasks for downstream evaluation: picking, stacking, and destacking. We note that all of our policies predict actions in the continuous joint position space. We do not make any domain or task-specific assumptions in the observation space or in the action space. Our policies run at 10 Hz and we show example videos below at 1x.
+    </p>
+
+    <div class="slider_section">
+        <div class="container-2 w-container">    
+            <div data-delay="10000" data-animation="slide" class="slider_v2 w-slider" data-autoplay="true"
+                 data-easing="ease" data-hide-arrows="false" data-disable-swipe="false" data-autoplay-limit="0"
+                 data-nav-spacing="3" data-duration="800" data-infinite="true">
+                <div class="mask w-slider-mask">
+                    <div class="slide w-slide">
+                        <div class="div-block-9 first_video"> <div class="video_class w-embed">
+                            <video width=100% height=100% autoplay muted controls loop preload="metadata">
+                                <source src="assets/franka/pick-blue/IMG_1586-High_Compression_720p.mp4"
+                                        type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        </div> </div>
+                        <div class="div-block-9"> <div class="video_class w-embed">
+                            <video width=100% height=100% autoplay muted controls loop preload="metadata">
+                                <source src="assets/franka/stack/IMG_1599-High_Compression_720p.mp4"
+                                        type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        </div> </div>
+                    </div>
+                    <div class="w-slide"> <div class="div-block-9"> <div class="video_class w-embed">
+                        <video width=100% height=100% autoplay muted controls loop preload="metadata">
+                            <source src="assets/franka/destack/IMG_1633-High_Compression_720p.mp4"
+                                    type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div> </div> </div>
+                    <div class="w-slide"> <div class="div-block-9"> <div class="video_class w-embed">
+                        <video width=100% height=100% autoplay muted controls loop preload="metadata">
+                            <source src="assets/franka/pick-fruit/IMG_9580-High_Compression_720p.mp4"
+                                    type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div> </div> </div>
+                    <div class="w-slide"> <div class="div-block-9"> <div class="video_class w-embed">
+                        <video width=100% height=100% autoplay muted controls loop preload="metadata">
+                            <source src="assets/franka/pick-white/IMG_9615-High_Compression_720p.mp4"
+                                    type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div> </div> </div>
+                    <div class="w-slide"> <div class="div-block-9"> <div class="video_class w-embed">
+                        <video width=100% height=100% autoplay muted controls loop preload="metadata">
+                            <source src="assets/franka/pick-soft/IMG_9621-High_Compression_720p.mp4"
+                                    type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div> </div> </div>
+                    <div class="w-slide"> <div class="div-block-9"> <div class="video_class w-embed">
+                        <video width=100% height=100% autoplay muted controls loop preload="metadata">
+                            <source src="assets/franka/pick-gray/IMG_9638-High_Compression_720p.mp4"
+                                    type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div> </div> </div>
+                    <div class="w-slide"> <div class="div-block-9"> <div class="video_class w-embed">
+                        <video width=100% height=100% autoplay muted controls loop preload="metadata">
+                            <source src="assets/franka/pick-red/IMG_9631-High_Compression_720p.mp4"
+                                    type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div> </div> </div>
+                    <div class="w-slide"> <div class="div-block-9"> <div class="video_class w-embed">
+                        <video width=100% height=100% autoplay muted controls loop preload="metadata">
+                            <source src="assets/franka/pick-green/IMG_9619-High_Compression_720p.mp4"
+                                    type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div> </div> </div>
+                    <div class="w-slide"> <div class="div-block-9"> <div class="video_class w-embed">
+                        <video width=100% height=100% autoplay muted controls loop preload="metadata">
+                            <source src="assets/franka/pick-wood/IMG_9623-High_Compression_720p.mp4"
+                                    type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div> </div> </div>
+                    <div class="w-slide"> <div class="div-block-9"> <div class="video_class w-embed">
+                        <video width=100% height=100% autoplay muted controls loop preload="metadata">
+                            <source src="assets/franka/pick-yellow-wood/IMG_9633-High_Compression_720p.mp4"
+                                    type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div> </div> </div>
+                    <div class="w-slide">
+                        <div class="div-block-9"> <div class="video_class w-embed">
+                            <video width=100% height=100% autoplay muted controls loop preload="metadata">
+                                <source src="assets/franka/destack/IMG_1629-High_Compression_720p.mp4"
+                                        type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        </div> </div>
+                        <div class="div-block-9 last_block"> <div class="video_class w-embed">
+                            <video width=100% height=100% autoplay muted controls loop preload="metadata">
+                                <source src="assets/franka/pick-fruit/IMG_9595-High_Compression_720p.mp4"
+                                        type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        </div> </div>
+                    </div>
+                </div>
+                <div class="w-slider-arrow-left"> <div class="w-icon-slider-left"> </div> </div>
+                <div class="w-slider-arrow-right"> <div class="w-icon-slider-right"> </div> </div>
+                <div class="nerf_slide_nav w-slider-nav w-slider-nav-invert w-round"> </div>
+            </div>
+        </div>
+    </div>
 
     <h1>Outperforms Training from Scratch</h1>
     <p>
@@ -152,6 +254,7 @@
         </div>
     </div>
 
+    <!--
     <h1>Can Leverage Different Pre-training Data</h1>
     <p>
         Next, we study the impact of different pre-training data on fine-tuning performance. Specifically, we first pre-train our model on data from different tasks: stacking, picking, successful bin picking trajectories, and all bin picking trajectories. We then fine-tune and evaluate the model on stacking. Below, we see that RPT obtains similar performance on stacking when pre-trained on stacking, picking, or bin picking, suggesting that it is able to learn sensorimotor representations from data of different tasks. We also observe a lower performance when pre-trained on imperfect (both successful and failed) trajectories of bin picking, highlighting the importance of pre-training data quality.
@@ -164,7 +267,9 @@
             <img style='width: 95%' src="assets/pretrain_data.png" alt="Pre-training data.">
         </div>
     </div>
+    -->
 
+    <!--
     <h1>High Masking Ratio Across All Modalities</h1>
     <p>
         Finally, we perform ablation studies on different masking types and ratios. First, we find that masking across both modalities and times (token masking) is considerably more effective than masking one modality or one step at the time. Second, we find that masking with a high-masking ratio is important for good performance.
@@ -175,6 +280,47 @@
                 <p>Masking types (left and middle) and masking ratio (right)</p>
             </div>
             <img src="assets/masking_ablation.png" alt="Masking ablations.">
+        </div>
+    </div>
+    -->
+
+    <h1>Failure Cases</h1>
+    <p> 
+        Policies trained with our pre-trained representations are sitll not perfect and can fail in a variety of ways. 
+        Here we show example videos of some of the failure cases. 
+    </p>
+    <div class="xarmfail">
+        <div class="video_container">
+            <video autoplay muted playsinline loop preload="metadata">
+                <source src="assets/franka/failure/yellow_cube_fail-High_Compression_720p.mp4" type="video/mp4">
+            </video>
+            <div class="caption">
+                <p> Imprecise pick </p>
+            </div>
+        </div>
+        <div class="video_container">
+            <video autoplay muted playsinline loop preload="metadata">
+                <source src="assets/franka/failure/IMG_1598-High_Compression_720p.mp4" type="video/mp4">
+            </video>
+            <div class="caption">
+                <p> Imprecise stack </p>
+            </div>
+        </div>
+        <div class="video_container">
+            <video autoplay muted playsinline loop preload="metadata">
+                <source src="assets/franka/failure/orange_fail-High_Compression_720p.mp4" type="video/mp4">
+            </video>
+            <div class="caption">
+                <p> Misaligned close </p>
+            </div>
+        </div>
+        <div class="video_container">
+            <video autoplay muted playsinline loop preload="metadata">
+                <source src="assets/franka/failure/pear_fail_slip-High_Compression_720p.mp4" type="video/mp4">
+            </video>
+            <div class="caption">
+                <p> Object slip </p>
+            </div>
         </div>
     </div>
 
